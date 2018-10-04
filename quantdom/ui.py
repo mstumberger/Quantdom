@@ -23,7 +23,7 @@ __all__ = (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TICKER = 'AAPL'
+DEFAULT_TICKER = 'XBTUSD'
 SYMBOL_COLUMNS = ['Symbol', 'Security Name']
 
 

@@ -11,6 +11,10 @@ from pandas_datareader.data import (
     get_data_yahoo,
 )
 from pandas_datareader.nasdaq_trader import get_nasdaq_symbols
+import requests
+import math
+import pandas as pd
+from datetime import datetime, timedelta
 
 from .base import Quotes
 from .utils import get_data_path, timeit
@@ -47,7 +51,7 @@ class QuotesLoader:
 
     @classmethod
     def _save_to_disk(cls, fpath, data):
-        logger.debug('Saving quotes to a file: %s', fpath)
+        logger.debug('Saving quotes to a file: {}: {}'.format(fpath, cls.source))
         with open(fpath, 'wb') as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
@@ -76,7 +80,74 @@ class YahooQuotesLoader(QuotesLoader):
 
     @classmethod
     def _get(cls, symbol, date_from, date_to):
-        return get_data_yahoo(symbol, date_from, date_to)
+        data = get_data_yahoo(symbol, date_from, date_to)
+        print(data)
+        return data
+
+
+class BitmexLoader(QuotesLoader):
+
+    source = 'bitmex'
+    interval = 3600
+
+    @classmethod
+    def _get(cls, symbol, date_from, date_to):
+        print(date_from, date_to)
+
+        # timestamp_from = (datetime.now() - timedelta(weeks=10)).timestamp()
+        # timestamp_now = datetime.now().timestamp()
+        timestamp_from = datetime.strptime(str(date_from), "%Y-%m-%d").timestamp()
+        timestamp_now = datetime.strptime(str(date_to), "%Y-%m-%d").timestamp()
+
+        max_back_time = 0
+        max_bars = 10080
+        max_bars_time = ((cls.interval * 60) * max_bars)
+        time_to_iterate = timestamp_now - timestamp_from
+
+        print("data: start:", datetime.fromtimestamp(timestamp_from), "end:", datetime.fromtimestamp(timestamp_now))
+
+        data_frame = []
+
+        for x in range(int(math.ceil(time_to_iterate / max_bars_time))):
+            if x > 0:
+                if (max_back_time - max_bars_time) > timestamp_from:
+                    max_back_time, timestamp_now = (max_back_time - max_bars_time), max_back_time
+                else:
+                    max_back_time, timestamp_now = timestamp_from, max_back_time
+
+            elif x == 0:
+                if time_to_iterate < max_bars_time:
+                    max_back_time = timestamp_from
+                else:
+                    max_back_time = timestamp_now - max_bars_time
+
+            print("SPLIT TIMING", "start:", datetime.fromtimestamp(max_back_time), "end:", datetime.fromtimestamp(timestamp_now))
+            r = requests.get(
+                'https://www.bitmex.com/api/udf/history?symbol={}&resolution={}&from={}&to={}'.format(symbol, 'D', #cls.interval,
+                                                                                                      max_back_time,
+                                                                                                      timestamp_now)).json()
+            print(r)
+            if r == {'s': 'no_data'}:
+                print("return")
+                return None
+
+            data = {
+                'Date': r['t'],
+                'Open': r['o'],
+                'High': r['o'],
+                'Low': r['o'],
+                'Close': r['c'],
+                'Adj Close': r['o'],
+                'Volume': r['v']
+            }
+
+            columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+
+            df = pd.DataFrame(data, columns=columns)
+            df['Date'] = pd.to_datetime(df['Date'], unit='s')
+            data_frame.append(df)
+
+        return pd.concat(data_frame)
 
 
 class GoogleQuotesLoader(QuotesLoader):
@@ -99,6 +170,7 @@ class QuandleQuotesLoader(QuotesLoader):
     def _get(cls, symbol, date_from, date_to):
         quotes = get_data_quandl(symbol, date_from, date_to)
         quotes.sort_index(inplace=True)
+        print(quotes)
         return quotes
 
 
@@ -117,7 +189,7 @@ def get_symbols():
 
 def get_quotes(*args, **kwargs):
     quotes = []
-    loaders = [YahooQuotesLoader, GoogleQuotesLoader, QuandleQuotesLoader]
+    loaders = [BitmexLoader, YahooQuotesLoader, GoogleQuotesLoader, QuandleQuotesLoader]
     while loaders:
         loader = loaders.pop(0)
         try:

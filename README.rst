@@ -1,6 +1,10 @@
 Quantdom
 ========
 
+MODIFIED TO ACCEPT XBTUSD PAIR, GETS DATA FROM BITMEX, KIND OF BUGGY :(
+
+
+========
 .. image:: https://img.shields.io/pypi/v/quantdom.svg?style=flat-square
     :target: https://pypi.python.org/pypi/quantdom/
 .. image:: https://img.shields.io/travis/constverum/Quantdom.svg?style=flat-square

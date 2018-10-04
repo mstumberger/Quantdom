@@ -39,7 +39,7 @@ class MainWindow(QtGui.QMainWindow):
         self.move(x, y)
 
 
-def main(debug=False):
+def main(debug=True):
     app = QtGui.QApplication.instance()
     if app is None:
         app = QtGui.QApplication([])
@@ -56,4 +56,10 @@ def main(debug=False):
 
 
 if __name__ == '__main__':
-    main()
+
+    logging.basicConfig(
+        format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+        datefmt='[%H:%M:%S]',
+        level=logging.DEBUG)
+
+    main(debug=True)
